@@ -32,7 +32,13 @@ function bytesOf(s){ var b=[]; for (var i=0;i<s.length;i++) b.push(s.charCodeAt(
 var _fcT0 = Date.now();
 var AS_MAX=2, AS_MIN_RANGE=32768, _asRun=0, _asRunP=[0,0,0,0], _asQ=[[],[],[],[]];
 function hhBusy(){ return _asRun+_asQ[0].length+_asQ[1].length+_asQ[2].length+_asQ[3].length>0; }
-function adkDefer(){ return HH_ENABLED && ((Date.now()-_fcT0)<60000 || hhBusy()); }
+// Household has LANDED once the operative gates are flipped (dispatcher + route-2 + the render 'w' gate).
+// After that the household loop only keeps a light async watch for fresh (re-evaluated) module copies, so
+// the ad-kill no longer needs to defer — otherwise the persistent re-sweep would starve it for the whole
+// session (phly95's "ad-kill barely ran" in household builds). Before landing, the ad-kill steps aside
+// for the first 60s or whenever a household scan is pending, so the household flip wins its race.
+function hhLanded(){ return clcsDone && frDone && hhDone; }
+function adkDefer(){ return HH_ENABLED && !hhLanded() && ((Date.now()-_fcT0)<60000 || hhBusy()); }
 function aScanPick(){ if(_asQ[0].length) return 0;
   var h=_asQ[1].length>0, a=_asQ[2].length>0;
   if(h&&a) return (_asRunP[2]<_asRunP[1])?2:1;

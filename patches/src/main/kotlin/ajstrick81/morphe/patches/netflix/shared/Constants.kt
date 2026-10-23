@@ -24,6 +24,18 @@ object Constants {
         // armeabi-v7a build on APKMirror reports versionName "13.0.1 build 25028"
         // (versionCode 25028); a normalized "13.0.1-25028-armv7a" string does NOT
         // match and trips the version-mismatch warning.
-        targets = listOf(AppTarget("13.0.1 build 25028"))
+        //
+        // TEST-CANDIDATE ONLY — DO NOT MERGE as-is. "13.2.1 build 27207"
+        // (versionCode 27207) was added on branch test/netflix-13.2.1-27207 so
+        // the CLI/Manager accept the newer APK for a controlled test build.
+        // Static prerequisites match (both DEX fingerprints resolve uniquely,
+        // ARMv7 split present), but startup/CertCheck/native-signature and
+        // runtime ad/JS suppression are UNVERIFIED on this build. Keep this
+        // entry out of main until cold-launch + login + ad behavior are
+        // confirmed on-device (Onn coffey). See Netflix-13.2.1-Patch-Comparison.
+        targets = listOf(
+            AppTarget("13.0.1 build 25028"),
+            AppTarget("13.2.1 build 27207"),
+        )
     )
 }

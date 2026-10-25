@@ -44,6 +44,22 @@ inline size_t json_match_bracket(const char* buf, size_t n, size_t open) {
     return static_cast<size_t>(-1);
 }
 
+// Blank the ENTIRE interior of the array whose opener ('[' or '{') is at `open`,
+// but only if its matching close is present within [open, n). On success the
+// interior bytes become ASCII spaces (same length, string/escape aware) and the
+// close index is returned; if the array is still truncated nothing is written
+// and (size_t)-1 is returned. This is the whole-array empty used by both the
+// in-chunk complete path and the #260 cross-chunk reassembly path, so both run
+// identical, host-tested code. `buf` must be writable; length never changes.
+inline size_t blank_array_interior_if_complete(char* buf, size_t n, size_t open,
+                                               bool apply = true) {
+    size_t close = json_match_bracket(buf, n, open);
+    if (close == static_cast<size_t>(-1)) return static_cast<size_t>(-1);
+    if (apply && close > open + 1)
+        for (size_t i = open + 1; i < close; ++i) buf[i] = ' ';
+    return close;
+}
+
 // Blank every COMPLETE `"urls":[ ... ]` array whose closing ']' is present in
 // [from, n). Interior bytes become ASCII spaces; the brackets stay, yielding a
 // valid, same-length empty `"urls":[]`. Stops at the first truncated (unclosed)

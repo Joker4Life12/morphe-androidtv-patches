@@ -301,6 +301,60 @@ int main() {
         CHECK(buf.find("\"cut") != std::string::npos, "rego-multi: truncated third urls left intact");
     }
 
+    // ── #260 REASSEMBLY: whole-array empty once the playlist closes ─────────
+    // blank_array_interior_if_complete() is the shared primitive the cross-chunk
+    // reassembler (hooks.cpp rego_try_reassemble) runs over the reassembled
+    // span. On a truncated prefix it must write NOTHING and report truncation;
+    // on the complete (reassembled) buffer it must blank the ENTIRE interior so
+    // the playlist is genuinely empty (length 0) — the only thing that kills the
+    // ghost tail period that hangs the pre-roll.
+    {
+        // The complete response, exactly as it looks after all chunks land.
+        std::string full =
+          "{\"description\":{\"adDeliverySessionId\":\"x_PBP_EXPL_y_1\",\"adMarkerId\":\"PRE_ROLL\"},"
+          "\"playlist\":[{\"type\":\"Ad\",\"media\":{\"urls\":[{\"url\":\"a/interstitial/1.mpd\"}]}},"
+          "{\"type\":\"Ad\",\"media\":{\"urls\":[{\"url\":\"b/interstitial/2.mpd\"}]}},"
+          "{\"type\":\"Ad\",\"media\":{\"urls\":[{\"url\":\"c/interstitial/3.mpd\"}]}}],"
+          "\"measurement\":{\"a\":1}}";
+        size_t open = full.find("\"playlist\":[") + 11;
+
+        // (a) The first chunk is a truncated prefix: cut inside the 3rd ad object.
+        std::string prefix = full.substr(0, full.find("c/interstitial/3.mpd"));
+        std::string pbuf = prefix;
+        CHECK(pvfilter::blank_array_interior_if_complete(&pbuf[0], pbuf.size(), open)
+                  == (size_t)-1,
+              "reasm-prefix: truncated prefix reports -1 (no close)");
+        CHECK(pbuf == prefix, "reasm-prefix: truncated prefix written byte-for-byte unchanged");
+
+        // (b) Reassembled: the same open offset, now over the full buffer. The
+        //     whole interior must blank; the array becomes a true empty list.
+        std::string fbuf = full;
+        size_t close = pvfilter::blank_array_interior_if_complete(&fbuf[0], fbuf.size(), open);
+        CHECK(close != (size_t)-1, "reasm-full: playlist now closes");
+        CHECK(fbuf.size() == full.size(), "reasm-full: length unchanged");
+        CHECK(all_spaces(fbuf, open + 1, close), "reasm-full: entire interior blanked to spaces");
+        CHECK(fbuf.find("/interstitial/") == std::string::npos,
+              "reasm-full: every ad URL gone (no ghost tail object survives)");
+        CHECK(fbuf.find("\"measurement\":{\"a\":1}") != std::string::npos,
+              "reasm-full: content after the playlist untouched");
+        // The tail object literal that caused #260 must be gone, not merely media-stripped.
+        CHECK(fbuf.find("\"type\":\"Ad\"") == std::string::npos,
+              "reasm-full: no residual ad object -> playlist.length === 0");
+    }
+
+    // ── #260 REASSEMBLY: dry-run (apply=false) parses but writes nothing ─────
+    {
+        std::string full =
+          "{\"playlist\":[{\"type\":\"Ad\",\"media\":{\"urls\":[{\"url\":\"a/interstitial/1.mpd\"}]}}],"
+          "\"measurement\":{}}";
+        std::string buf = full;
+        size_t open = full.find("\"playlist\":[") + 11;
+        size_t close = pvfilter::blank_array_interior_if_complete(&buf[0], buf.size(), open,
+                                                                  /*apply=*/false);
+        CHECK(close != (size_t)-1, "reasm-dryrun: close still located");
+        CHECK(buf == full, "reasm-dryrun: apply=false writes nothing");
+    }
+
     std::printf(g_fail == 0 ? "ALL TESTS PASSED (0 failure(s))\n" : "%d FAILURE(S)\n", g_fail);
     return g_fail == 0 ? 0 : 1;
 }

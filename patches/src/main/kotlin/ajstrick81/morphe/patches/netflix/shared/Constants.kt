@@ -25,17 +25,18 @@ object Constants {
         // (versionCode 25028); a normalized "13.0.1-25028-armv7a" string does NOT
         // match and trips the version-mismatch warning.
         //
-        // TEST-CANDIDATE ONLY — DO NOT MERGE as-is. "13.2.1 build 27207"
-        // (versionCode 27207) was added on branch test/netflix-13.2.1-27207 so
-        // the CLI/Manager accept the newer APK for a controlled test build.
-        // Static prerequisites match (both DEX fingerprints resolve uniquely,
-        // ARMv7 split present), but startup/CertCheck/native-signature and
-        // runtime ad/JS suppression are UNVERIFIED on this build. Keep this
-        // entry out of main until cold-launch + login + ad behavior are
-        // confirmed on-device (Onn coffey). See Netflix-13.2.1-Patch-Comparison.
+        // "13.2.1 build 27207" (versionCode 27207) is marked EXPERIMENTAL:
+        // device-verified on Onn coffey (clean startup, no CertCheck crash,
+        // ad-kill landing with verify=OK, multiple titles ad-free over a
+        // sustained session), BUT the ad-kill currently rests on the V3
+        // re-minify re-anchor rather than the pristine exact MASTER/ADV anchors
+        // (those re-minified on this build). V3 is drift-tolerant and
+        // verify-before-write, so it's safe; the exact re-pin is tracked ship
+        // hardening. isExperimental=true surfaces a "proceed with caution" flag
+        // in Morphe Manager. See memory netflix-13.2.1-27207-bringup.
         targets = listOf(
             AppTarget("13.0.1 build 25028"),
-            AppTarget("13.2.1 build 27207"),
+            AppTarget("13.2.1 build 27207", isExperimental = true),
         )
     )
 }

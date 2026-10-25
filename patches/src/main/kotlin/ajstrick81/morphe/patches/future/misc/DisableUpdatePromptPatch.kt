@@ -10,16 +10,16 @@ import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 val disableUpdatePromptPatch = bytecodePatch(
     name = "Disable update prompt",
     description = "Stops Fawesome Movies & TV (Android TV) from showing the \"New version " +
-        "Available\" dialog on every launch. SplashActivity.checkCurrentAppVersion() compares " +
-        "the server's latest version code (Firebase remote-config key " +
-        "\"versioncode_androidtv_googletv\") against a baked-in constant and, when the server " +
-        "value is higher, calls Utilities.updateAlert(). This patch makes that branch skip the " +
-        "dialog and go straight into the app via the activity's own callRootdata() — the exact " +
-        "thing the dialog's Cancel button already does — so startup is unchanged and the nag is " +
-        "gone. The remote-config reads that run before the branch (which populate GlobalObject) " +
-        "are preserved. Nothing is added; the client just stops being told to update.",
+        "Available\" dialog on every launch. The app reads the server's latest version code " +
+        "(Firebase remote-config key \"versioncode_androidtv_googletv\") and, when it is higher " +
+        "than the installed build, shows an update dialog before continuing into the app. This " +
+        "patch forces the app's own no-update path instead, so startup is unchanged and the nag " +
+        "is gone — nothing is added, the client just stops being told to update. On 19.7 the seam " +
+        "is SplashActivity.checkCurrentAppVersion() -> Utilities.updateAlert(); on 20.1 (R8-" +
+        "obfuscated, ViewModel rewrite) it is the splash view-model's version-check method, forced " +
+        "down its own proceed branch. Whichever matches the installed version is applied.",
 ) {
-    compatibleWith(Constants.COMPATIBILITY)
+    compatibleWith(Constants.UPDATE_COMPATIBILITY)
 
     execute {
         // Anchor on the single update-dialog call site inside checkCurrentAppVersion()
@@ -50,5 +50,19 @@ val disableUpdatePromptPatch = bytecodePatch(
                 """,
             )
         }
+
+        // ── 20.1 seam ────────────────────────────────────────────────────────────
+        // The version-check moved into the splash view-model's e(int versionCode, String).
+        // Its first branch is `if (versionCode <= 0) -> proceed`; only `versionCode > 193`
+        // reaches the update-dialog state. Zeroing the versionCode parameter at entry forces
+        // the method down its own proceed branch (emitting the app's stock no-update state),
+        // so the dialog state is never produced. One instruction, no flow change otherwise.
+        //
+        // p1 is the int versionCode parameter of this instance method. methodOrNull so a
+        // version that lacks this seam (e.g. 19.7) degrades gracefully.
+        SplashUpdateStateMethodFingerprint.methodOrNull?.addInstructions(
+            0,
+            "const/4 p1, 0x0",
+        )
     }
 }

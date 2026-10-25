@@ -1,6 +1,7 @@
 package ajstrick81.morphe.patches.future.misc
 
 import app.morphe.patcher.Fingerprint
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fawesome Movies & TV — com.future.moviesByFawesomeAndroidTV — update-prompt seam.
@@ -31,5 +32,36 @@ object CheckCurrentAppVersionFingerprint : Fingerprint(
     custom = { method, classDef ->
         method.name == "checkCurrentAppVersion" &&
             classDef.type.endsWith("/SplashActivity;")
+    },
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 20.1 re-anchor. In 20.1 the whole com/future package is R8-obfuscated and the
+// SplashActivity was rewritten (Hilt/ViewModel + coroutine StateFlow), so the
+// version check moved into a splash view-model:
+//
+//   com.future.moviesByFawesomeAndroidTV.ui.splash.<K>.e(int versionCode, String message)
+//
+//     if (versionCode > 0 && versionCode > 0xC1 /*193 = installed code*/)
+//         emit updateState  = new ui.splash.<C>(true,  true,  true,  message)  // dialog
+//     else
+//         emit proceedState = new ui.splash.<C>(0xE)  // -> (a=1, b=0, c=0) no dialog
+//
+// The ui/splash/ package name survives obfuscation but the class/method letters do
+// NOT, so we anchor structurally: an instance method (I, String)V inside ui/splash/
+// whose body constructs a sibling ui/splash/ state object via <init>(ZZZLjava/lang/String;)V
+// (the update-state build). That construction is unique to e() among (I,String)V methods.
+// ─────────────────────────────────────────────────────────────────────────────
+object SplashUpdateStateMethodFingerprint : Fingerprint(
+    returnType = "V",
+    parameters = listOf("I", "Ljava/lang/String;"),
+    custom = { method, classDef ->
+        classDef.type.contains("/ui/splash/") &&
+            method.implementation?.instructions?.any { insn ->
+                val ref = (insn as? ReferenceInstruction)?.reference?.toString()
+                ref != null &&
+                    ref.contains("/ui/splash/") &&
+                    ref.endsWith(";-><init>(ZZZLjava/lang/String;)V")
+            } == true
     },
 )

@@ -1,3 +1,10 @@
+# [1.43.0](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.42.3...v1.43.0) (2026-10-25)
+
+
+### Features
+
+* **netflix:** support 13.2.1 build 27207 (experimental) ([676e203](https://github.com/ajstrick81/morphe-androidtv-patches/commit/676e20399bea8f240113c075269a654820c42533)), closes [212/#232](https://github.com/ajstrick81/morphe-androidtv-patches/issues/232)
+
 ## [1.42.3](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.42.2...v1.42.3) (2026-10-23)
 
 

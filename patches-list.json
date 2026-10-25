@@ -1,5 +1,5 @@
 {
-  "version": "1.42.3",
+  "version": "1.43.0",
   "appNames": {
     "com.disney.disneyplus": "Disney+ Android TV",
     "com.espn.score_center": "ESPN Android TV",
@@ -146,6 +146,10 @@
             {
               "version": "13.0.1 build 25028",
               "experimental": false
+            },
+            {
+              "version": "13.2.1 build 27207",
+              "experimental": true
             }
           ]
         }
@@ -265,6 +269,10 @@
             {
               "version": "13.0.1 build 25028",
               "experimental": false
+            },
+            {
+              "version": "13.2.1 build 27207",
+              "experimental": true
             }
           ]
         }
@@ -716,6 +724,10 @@
             {
               "version": "13.0.1 build 25028",
               "experimental": false
+            },
+            {
+              "version": "13.2.1 build 27207",
+              "experimental": true
             }
           ]
         }
@@ -902,6 +914,10 @@
             {
               "version": "13.0.1 build 25028",
               "experimental": false
+            },
+            {
+              "version": "13.2.1 build 27207",
+              "experimental": true
             }
           ]
         }
@@ -930,6 +946,10 @@
             {
               "version": "13.0.1 build 25028",
               "experimental": false
+            },
+            {
+              "version": "13.2.1 build 27207",
+              "experimental": true
             }
           ]
         }
@@ -1270,6 +1290,10 @@
             {
               "version": "13.0.1 build 25028",
               "experimental": false
+            },
+            {
+              "version": "13.2.1 build 27207",
+              "experimental": true
             }
           ]
         }

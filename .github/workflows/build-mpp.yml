@@ -1,7 +1,9 @@
 name: Build MPP
 
-# Manuell startbar: Actions > "Build MPP" > "Run workflow"
+# Startet bei jedem Speichern (Commit) in jedem Zweig und manuell
 on:
+  push:
+    branches: ['**']
   workflow_dispatch:
 
 permissions:

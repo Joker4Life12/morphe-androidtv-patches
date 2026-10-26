@@ -1,0 +1,41 @@
+name: Build MPP
+
+# Manuell startbar: Actions > "Build MPP" > "Run workflow"
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew clean :patches:buildAndroid
+
+      - name: Upload MPP
+        uses: actions/upload-artifact@v4
+        with:
+          name: patches-mpp
+          path: patches/build/libs/*.mpp
+          if-no-files-found: error

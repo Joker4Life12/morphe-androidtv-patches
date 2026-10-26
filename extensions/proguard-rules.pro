@@ -113,6 +113,14 @@
     public static java.lang.Object preferFallbackType(java.lang.Object, java.lang.Object);
 }
 
+# HBO Max — Remove Ad Periods. HboManifestFilter.captureStreams / filter are called
+# only from injected smali (at PlayableKt.getStreamInfo and
+# ExoPlayerDashManifestParser.parse), so R8 would strip the class. Keep both entry points.
+-keep class ajstrick81.morphe.extension.hbomax.ads.HboManifestFilter {
+    public static void captureStreams(java.lang.Object);
+    public static java.io.InputStream filter(java.lang.Object, java.io.InputStream);
+}
+
 # Paramount+ — LIVE sports slate PTS-aligner. MorpheTsRewriter.alignSlateToLive(String,String)
 # is called only from injected smali (invoke-static {} in AviaNetworkInterceptor.intercept),
 # so R8 sees it as unreferenced and would strip or rename it. Keep the class and the entry point.

@@ -38,7 +38,7 @@ import java.util.regex.Pattern;
  * requested type.
  */
 @SuppressWarnings("unused")
-public final class HboStreamSelector {
+public final class HboStreamSelector implements Runnable {
 
     private static final String TAG = "HboStreamSelector";
     private static final String PRIMARY = "PRIMARY";
@@ -46,7 +46,30 @@ public final class HboStreamSelector {
 
     private static volatile int lastDiagnosedPlayable;
 
-    private HboStreamSelector() {
+    private final String diagLabel;
+    private final String diagUrl;
+
+    HboStreamSelector(String label, String url) {
+        this.diagLabel = label;
+        this.diagUrl = url;
+    }
+
+    @Override
+    public void run() {
+        summarizeManifest(diagLabel, diagUrl);
+    }
+
+    private static String why(Throwable t) {
+        StringBuilder sb = new StringBuilder(String.valueOf(t));
+        StackTraceElement[] st = t.getStackTrace();
+        for (int i = 0; i < st.length && i < 5; i++) {
+            sb.append(" | ").append(st[i]);
+        }
+        Throwable c = t.getCause();
+        if (c != null) {
+            sb.append(" | cause: ").append(c);
+        }
+        return sb.toString();
     }
 
     // ---------------------------------------------------------------------
@@ -68,7 +91,7 @@ public final class HboStreamSelector {
             try {
                 describe(streamInfo);
             } catch (Throwable t) {
-                Log.w(TAG, "diag: describe failed", t);
+                Log.w(TAG, "diag: describe failed: " + why(t));
             }
         }
     }
@@ -88,7 +111,20 @@ public final class HboStreamSelector {
         StringBuilder sb = new StringBuilder("diag stream ").append(type).append(':');
         final String[] mpdUrl = new String[1];
         for (Method m : streamInfo.getClass().getMethods()) {
-            if (m.getParameterTypes().length != 0 || m.getDeclaringClass() == Object.class) {
+            String mn = m.getName();
+            if (m.getParameterTypes().length != 0 || m.getDeclaringClass() == Object.class
+                    || mn.startsWith("component") || mn.equals("toString")
+                    || mn.equals("hashCode") || mn.equals("getTimelinePayload")) {
+                if (mn.equals("getTimelinePayload") && m.getParameterTypes().length == 0) {
+                    try {
+                        Object tp = m.invoke(streamInfo);
+                        if (tp != null) {
+                            sb.append(' ').append(summarizeTimeline(String.valueOf(tp)));
+                        }
+                    } catch (Throwable ignored) {
+                        // diagnostic only
+                    }
+                }
                 continue;
             }
             Class<?> r = m.getReturnType();
@@ -123,17 +159,18 @@ public final class HboStreamSelector {
         if (mpdUrl[0] != null) {
             final String url = mpdUrl[0];
             final String label = String.valueOf(type);
-            Thread t = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    summarizeManifest(label, url);
-                }
-            }, "HboManifestDiag");
+            Thread t = new Thread(new HboStreamSelector(label, url), "HboManifestDiag");
             t.setDaemon(true);
             t.start();
         } else {
             Log.i(TAG, "diag " + type + ": no .mpd URL found via getters");
         }
+    }
+
+    private static String summarizeTimeline(String payload) {
+        return "timeline[len=" + payload.length() + " events=" + count(payload, "\"event\"")
+                + " actions=" + distinct(payload, "\"action\":\"([^\"]+)\"", 20)
+                + " schemas=" + distinct(payload, "\"schema\":\"([^\"]+)\"", 20) + "];";
     }
 
     private static void summarizeManifest(String label, String url) {
@@ -170,7 +207,7 @@ public final class HboStreamSelector {
                 i++;
             }
         } catch (Throwable t) {
-            Log.w(TAG, "diag " + label + " manifest fetch failed", t);
+            Log.w(TAG, "diag " + label + " manifest fetch failed: " + why(t));
         } finally {
             if (c != null) {
                 c.disconnect();

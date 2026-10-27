@@ -42,6 +42,7 @@ public final class HboManifestFilter {
 
     private static volatile int lastPlayable;
     private static volatile String fallbackUrl;
+    private static volatile Object fallbackInfo;
 
     private static volatile String cachedUrl;
     private static volatile List<Double> cachedDurations;
@@ -77,6 +78,7 @@ public final class HboManifestFilter {
                 Object url = streamInfo.getClass().getMethod("getUrl").invoke(streamInfo);
                 if (url != null && String.valueOf(url).startsWith("http")) {
                     fallbackUrl = String.valueOf(url);
+                    fallbackInfo = streamInfo;
                     lastPlayable = id;
                     Log.i(TAG, "fallback manifest known (" + hostAndFile(fallbackUrl) + ")");
                 }
@@ -99,6 +101,58 @@ public final class HboManifestFilter {
             return ((Enum<?>) type).name().toLowerCase(Locale.ROOT).contains("fallback");
         }
         return false;
+    }
+
+    // ---------------------------------------------------------------------
+    // Hook 3 (CreateTimelineUseCase.invoke(StreamInfo) entry): the app builds its ad UI
+    // (ad label/counter, seek lock) and its chapter markers (skip intro / next episode)
+    // from the StreamInfo's timeline payload. The PRIMARY payload still describes the
+    // ad breaks and uses the stitched time base, which no longer matches the filtered
+    // manifest. The FALLBACK payload has no ads and uses the content time base, so
+    // hand the timeline builder the FALLBACK StreamInfo instead.
+    // ---------------------------------------------------------------------
+
+    public static Object timelineStreamInfo(Object streamInfo) {
+        try {
+            Object fb = fallbackInfo;
+            if (fb == null || streamInfo == null || streamInfo == fb) {
+                return streamInfo;
+            }
+            Object type = streamInfo.getClass().getMethod("getType").invoke(streamInfo);
+            if (isFallback(type)) {
+                return streamInfo;
+            }
+            Object primaryUrl = streamInfo.getClass().getMethod("getUrl").invoke(streamInfo);
+            Object fallbackUrlObj = fb.getClass().getMethod("getUrl").invoke(fb);
+            if (primaryUrl == null || fallbackUrlObj == null
+                    || !sameDirectory(String.valueOf(primaryUrl), String.valueOf(fallbackUrlObj))) {
+                Log.i(TAG, "timeline: primary/fallback do not belong together - unchanged");
+                return streamInfo;
+            }
+            Object payload = fb.getClass().getMethod("getTimelinePayload").invoke(fb);
+            if (payload == null || String.valueOf(payload).isEmpty()) {
+                return streamInfo;
+            }
+            Log.i(TAG, "timeline: using FALLBACK timeline (len=" + String.valueOf(payload).length()
+                    + ") instead of PRIMARY");
+            return fb;
+        } catch (Throwable t) {
+            Log.w(TAG, "timelineStreamInfo failed: " + why(t));
+            return streamInfo;
+        }
+    }
+
+    private static boolean sameDirectory(String a, String b) {
+        return directoryOf(a).equals(directoryOf(b));
+    }
+
+    private static String directoryOf(String url) {
+        int q = url.indexOf('?');
+        String u = q >= 0 ? url.substring(0, q) : url;
+        int scheme = u.indexOf("://");
+        int slash = scheme >= 0 ? u.indexOf('/', scheme + 3) : 0;
+        String path = slash >= 0 ? u.substring(slash) : u;
+        return path.substring(0, path.lastIndexOf('/') + 1);
     }
 
     // ---------------------------------------------------------------------

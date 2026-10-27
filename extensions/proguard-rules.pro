@@ -115,10 +115,12 @@
 
 # HBO Max — Remove Ad Periods. HboManifestFilter.captureStreams / filter are called
 # only from injected smali (at PlayableKt.getStreamInfo and
-# ExoPlayerDashManifestParser.parse), so R8 would strip the class. Keep both entry points.
+# ExoPlayerDashManifestParser.parse, CreateTimelineUseCase.invoke), so R8 would strip the class.
+# Keep all entry points.
 -keep class ajstrick81.morphe.extension.hbomax.ads.HboManifestFilter {
     public static void captureStreams(java.lang.Object);
     public static java.io.InputStream filter(java.lang.Object, java.io.InputStream);
+    public static java.lang.Object timelineStreamInfo(java.lang.Object);
 }
 
 # Paramount+ — LIVE sports slate PTS-aligner. MorpheTsRewriter.alignSlateToLive(String,String)

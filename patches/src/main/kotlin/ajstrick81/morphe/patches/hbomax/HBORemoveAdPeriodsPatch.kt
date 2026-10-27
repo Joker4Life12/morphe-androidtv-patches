@@ -19,6 +19,11 @@ import ajstrick81.morphe.patches.shared.compat.AppCompatibilities
 // before the player parses it:
 //   1. PlayableKt.getStreamInfo (entry): HboManifestFilter.captureStreams(playable)
 //      remembers the FALLBACK manifest URL.
+//   3. CreateTimelineUseCase.invoke(StreamInfo) (entry): the app builds its ad UI
+//      ("Werbung 1/2", seek lock) and chapter markers (skip intro / next episode) from the
+//      StreamInfo's timeline payload. The PRIMARY payload still lists the ad breaks and
+//      uses the stitched time base; the FALLBACK payload has no ads and uses the content
+//      time base. So the timeline builder gets the FALLBACK StreamInfo.
 //   2. ExoPlayerDashManifestParser.parse(Uri, InputStream) (entry): the manifest
 //      stream is replaced by HboManifestFilter.filter(uri, stream). It fetches the
 //      FALLBACK manifest, keeps only the PRIMARY Periods whose durations match the
@@ -39,6 +44,17 @@ internal object ExoPlayerDashManifestParserParseFingerprint : Fingerprint(
             method.name == "parse" &&
             method.returnType != "Ljava/lang/Object;" &&
             method.parameterTypes.size == 2
+    },
+)
+
+internal object CreateTimelineUseCaseInvokeFingerprint : Fingerprint(
+    custom = { method, _ ->
+        // Unobfuscated class. A bridge invoke(Object) also exists; the real one takes StreamInfo.
+        method.definingClass ==
+            "Lcom/discovery/adtech/sdk/compat/services/CreateTimelineUseCase;" &&
+            method.name == "invoke" &&
+            method.parameterTypes.size == 1 &&
+            method.parameterTypes[0].toString() == "Lcom/discovery/player/common/models/StreamInfo;"
     },
 )
 
@@ -72,6 +88,18 @@ val hboRemoveAdPeriodsPatch = bytecodePatch(
             """
                 invoke-static {p1, p2}, Lajstrick81/morphe/extension/hbomax/ads/HboManifestFilter;->filter(Ljava/lang/Object;Ljava/io/InputStream;)Ljava/io/InputStream;
                 move-result-object p2
+            """.trimIndent(),
+        )
+
+        // invoke(StreamInfo): p0 = this, p1 = StreamInfo. The ad UI, seek lock and chapter
+        // markers are built from the StreamInfo's timeline payload; use the FALLBACK
+        // StreamInfo's (ad-free, content time base) instead of the PRIMARY's.
+        CreateTimelineUseCaseInvokeFingerprint.method.addInstructions(
+            0,
+            """
+                invoke-static {p1}, Lajstrick81/morphe/extension/hbomax/ads/HboManifestFilter;->timelineStreamInfo(Ljava/lang/Object;)Ljava/lang/Object;
+                move-result-object p1
+                check-cast p1, Lcom/discovery/player/common/models/StreamInfo;
             """.trimIndent(),
         )
     }

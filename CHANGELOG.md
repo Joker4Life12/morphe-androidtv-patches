@@ -1,3 +1,10 @@
+# [1.45.0](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.44.0...v1.45.0) (2026-10-28)
+
+
+### Features
+
+* **twitch:** add playback speed controls ([6a49d68](https://github.com/ajstrick81/morphe-androidtv-patches/commit/6a49d68f5ee8040e7b8c2bd59801feb36818370f))
+
 # [1.44.0](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.43.0...v1.44.0) (2026-10-26)
 
 

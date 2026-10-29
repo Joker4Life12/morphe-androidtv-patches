@@ -128,6 +128,21 @@
     public static java.lang.Object preferFallbackType(java.lang.Object, java.lang.Object);
 }
 
+# HBO Max — playback-speed control (issue #258, opt-in). Two entry points are
+# called from injected smali: HboSpeedController.setContext (at
+# BeamApplication.onCreate) and PlayerBridge.onPlayerCreated / setSpeedNative (at
+# the media3 ExoPlayer constructor).
+#
+# The WHOLE package is kept, not just those entry points. HboSpeedPanel extends
+# android.widget.Button, and when only the entry points were kept R8 inlined /
+# merged / renamed the rest across that View-subclass boundary and emitted
+# bytecode the ART verifier rejects at class-load — a startup VerifyError on
+# HboSpeedController ("'this' ... not instance of android.widget.Button") the
+# first time BeamApplication.onCreate referenced it. Keeping every class and
+# member in the package stops R8 from optimizing across these UI classes and
+# leaves the bytecode verifiable.
+-keep class ajstrick81.morphe.extension.hbomax.speed.** { *; }
+
 # Paramount+ — LIVE sports slate PTS-aligner. MorpheTsRewriter.alignSlateToLive(String,String)
 # is called only from injected smali (invoke-static {} in AviaNetworkInterceptor.intercept),
 # so R8 sees it as unreferenced and would strip or rename it. Keep the class and the entry point.

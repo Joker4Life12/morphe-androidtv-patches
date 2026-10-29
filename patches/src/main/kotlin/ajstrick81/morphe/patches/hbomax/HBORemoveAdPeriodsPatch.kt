@@ -31,8 +31,8 @@ import ajstrick81.morphe.patches.shared.compat.AppCompatibilities
 //      and the MPD duration.
 // Fail-open: on any doubt the original manifest is passed through unchanged.
 //
-// Use WITHOUT "HBO Max - Prefer Ad-Free Stream" (that one forces the stereo stream).
-// Recommended together with "HBO Max - Disable Ads".
+// Exclusive with "HBO Max - Prefer Ad-Free Stream": when this patch is installed that remap
+// is switched off at runtime. Recommended together with "HBO Max - Disable Ads".
 // ─────────────────────────────────────────────────────────────────────────────
 
 internal object ExoPlayerDashManifestParserParseFingerprint : Fingerprint(
@@ -62,12 +62,19 @@ internal object CreateTimelineUseCaseInvokeFingerprint : Fingerprint(
 val hboRemoveAdPeriodsPatch = bytecodePatch(
     name = "HBO Max - Remove Ad Periods (keep 5.1)",
     description = "Keeps the normal PRIMARY stream (with 5.1 / E-AC-3 audio) but removes the " +
-        "stitched ad periods from its DASH manifest before playback. Do NOT combine with " +
-        "'Prefer Ad-Free Stream' (that one forces the stereo-only fallback stream). " +
+        "stitched ad periods from its DASH manifest before playback. Overrides " +
+        "'Prefer Ad-Free Stream' (its stereo-only fallback remap is switched off automatically). " +
         "Fail-open: if the manifest cannot be matched, it is left unchanged.",
     default = false,
 ) {
     compatibleWith(AppCompatibilities.HBO_TV)
+
+    // Exclusivity with "Prefer Ad-Free Stream": that patch's PRIMARY->FALLBACK remap defeats
+    // this one. Depending on it makes it run BEFORE this patch, so this patch's
+    // captureStreams() hook (added at index 0 afterwards) executes first at runtime and
+    // switches the remap off (HboStreamSelector.preferFallbackType returns early when
+    // HboManifestFilter.isActive()). So it is safe to leave "Prefer Ad-Free Stream" on.
+    dependsOn(hboPreferFallbackStreamPatch)
 
     // Merges HboManifestFilter into the patched dex.
     extendWith("extensions/extension.mpe")

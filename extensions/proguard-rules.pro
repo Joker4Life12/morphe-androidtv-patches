@@ -121,6 +121,7 @@
     public static void captureStreams(java.lang.Object);
     public static java.io.InputStream filter(java.lang.Object, java.io.InputStream);
     public static java.lang.Object timelineStreamInfo(java.lang.Object);
+    public static boolean isActive();
 }
 
 # Paramount+ — LIVE sports slate PTS-aligner. MorpheTsRewriter.alignSlateToLive(String,String)

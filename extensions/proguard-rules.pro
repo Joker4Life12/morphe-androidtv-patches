@@ -94,6 +94,16 @@
 }
 -dontwarn androidx.media3.exoplayer.dash.manifest.**
 
+# Pluto v17 (Paramount+/AVIA rebuild) DASH period strip — skipAdsV17Patch Hooks 3 & 4
+# (see SkipAdsV17Patch.kt). cleanManifestStream is called from injected smali at
+# AviaDashParser.parse, and shouldSuppressDynamicAdFetch from CLID3Processor; both are
+# unreferenced from Java, so R8 would strip or rename them. Uses only platform/XML types
+# (no library deps), so no -dontwarn is needed.
+-keep class ajstrick81.morphe.extension.pluto.ads.PlutoV17ManifestProbe {
+    public static java.io.InputStream cleanManifestStream(java.io.InputStream);
+    public static boolean shouldSuppressDynamicAdFetch();
+}
+
 # Pluto LIVE ad-break mask — liveSlatePatch (see LiveSlatePatch.kt). Its @JvmStatic
 # entry points are called only from injected smali, so R8 would strip/rename them.
 -keep class ajstrick81.morphe.extension.pluto.ads.PlutoLiveSlateHelper {

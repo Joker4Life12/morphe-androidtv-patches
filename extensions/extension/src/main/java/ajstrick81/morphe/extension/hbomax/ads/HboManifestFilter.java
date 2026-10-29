@@ -24,10 +24,11 @@ import java.util.regex.Pattern;
  * keeping that manifest's audio (incl. E-AC-3 5.1), and keeps the app's own timeline
  * (ad UI, seek lock, chapters) consistent with that decision.
  *
- * Identity evidence: the content Periods of the PRIMARY manifest have exactly the same
- * durations as the Periods of the clean FALLBACK manifest. The PRIMARY Periods are only
- * touched if exactly ONE assignment of PRIMARY Periods to the FALLBACK Periods exists
- * (ambiguous or missing match => nothing is changed).
+ * Identity evidence: the content Periods of the PRIMARY manifest have the same durations as the
+ * Periods of the clean FALLBACK manifest (one PRIMARY content period may span several
+ * consecutive FALLBACK periods). The PRIMARY Periods are only touched if exactly ONE assignment
+ * exists; if several fit, the audio-language count (content 14-24 vs. ads 2-4) must settle it.
+ * Otherwise nothing is changed.
  *
  * One instance of this class = one playback session (one title). Primary and fallback are
  * bound by the asset id (UUID) in the manifest URL, so a previous title (or a preloaded
@@ -237,12 +238,30 @@ public final class HboManifestFilter implements Runnable {
             Log.i(TAG, "hook order: timeline hook runs " + (s.parseSeen ? "AFTER" : "BEFORE")
                     + " the manifest parse (decision so far: " + modeName(m) + ")");
             if (m == UNDECIDED) {
-                // Timeline first: decide up front from the FALLBACK's validity. Never block
-                // the main thread.
+                // Timeline first (observed on device: always, on a worker thread). Decide up
+                // front by a dry run on the PRIMARY manifest, so the timeline is only switched
+                // when the manifest filter will really succeed. Never block the main thread.
                 boolean main = isMainThread();
+                String reason;
                 boolean ok = s.awaitFallback(main ? 0 : DEADLINE_MS);
-                m = s.decide(ok ? FILTER : PASS_THROUGH, "timeline first, fallback "
-                        + (ok ? "valid" : "not available" + (main ? " (main thread, no wait)" : "")));
+                if (!ok) {
+                    reason = "fallback not available" + (main ? " (main thread, no wait)" : "");
+                } else if (main) {
+                    reason = "main thread, no dry run";
+                    ok = false;
+                } else {
+                    String[] why = new String[1];
+                    try {
+                        String xml = fetchText(String.valueOf(primaryUrl), DEADLINE_MS);
+                        s.apply(String.valueOf(primaryUrl), xml, why, true);
+                        ok = why[0] == null;
+                        reason = ok ? "dry run on primary manifest ok" : "dry run: " + why[0];
+                    } catch (Throwable t) {
+                        ok = false;
+                        reason = "dry run failed: " + why(t);
+                    }
+                }
+                m = s.decide(ok ? FILTER : PASS_THROUGH, "timeline first, " + reason);
             }
             if (m != FILTER) {
                 return streamInfo;
@@ -322,12 +341,10 @@ public final class HboManifestFilter implements Runnable {
             problem = "fallback manifest not available";
         } else {
             String[] why = new String[1];
-            out = s.apply(uri, new String(original, "UTF-8"), why);
-            if (out == null) {
-                problem = why[0] != null ? why[0] : "no change";
-            }
+            out = s.apply(uri, new String(original, "UTF-8"), why, false);
+            problem = why[0];
         }
-        if (out == null && problem != null && !"no ad periods".equals(problem)) {
+        if (problem != null) {
             if (m == FILTER) {
                 Log.w(TAG, "MISALIGNED: timeline was already switched to the fallback timeline but the"
                         + " manifest stays unfiltered (" + problem + ")");
@@ -336,7 +353,7 @@ public final class HboManifestFilter implements Runnable {
             }
             return null;
         }
-        // Success (or "no ad periods" - nothing to remove, the content-time timeline still fits).
+        // Success (out == null means: nothing to remove - the content-time timeline still fits).
         int now = s.decide(FILTER, "manifest filtered");
         if (now != FILTER) {
             Log.i(TAG, "timeline already decided pass-through - manifest left unchanged");
@@ -345,15 +362,20 @@ public final class HboManifestFilter implements Runnable {
         return out;
     }
 
-    /** Applies the period filter; returns null if nothing should change (reason in why[0]). */
-    private byte[] apply(String uri, String xml, String[] why) {
+    /**
+     * Aligns the PRIMARY periods with the FALLBACK content and, unless {@code dry}, returns the
+     * rewritten manifest. why[0] == null means "alignment ok" (the result may still be null when
+     * there is nothing to remove or when dry); otherwise why[0] holds the problem.
+     */
+    private byte[] apply(String uri, String xml, String[] why, boolean dry) {
         List<Double> content = fallbackDurations;
-        if (!xml.contains("<MPD") || xml.contains("type=\"dynamic\"")) {
+        if (xml == null || !xml.contains("<MPD") || xml.contains("type=\"dynamic\"")) {
             why[0] = "not a static MPD";
             return null;
         }
         List<int[]> spans = new ArrayList<int[]>();
         List<Double> durations = new ArrayList<Double>();
+        List<Integer> langCounts = new ArrayList<Integer>();
         Matcher pm = PERIOD.matcher(xml);
         while (pm.find()) {
             spans.add(new int[] {pm.start(), pm.end()});
@@ -368,12 +390,13 @@ public final class HboManifestFilter implements Runnable {
                 return null;
             }
             durations.add(d);
+            langCounts.add(langs(pm.group()).size());
         }
         if (spans.isEmpty()) {
             why[0] = "no periods";
             return null;
         }
-        boolean[] keep = matchUnique(durations, content, why);
+        boolean[] keep = align(durations, langCounts, content, why);
         if (keep == null) {
             logPeriods(xml, spans, durations, null);
             return null;
@@ -384,16 +407,20 @@ public final class HboManifestFilter implements Runnable {
                 removed++;
             }
         }
+        if (dry) {
+            Log.i(TAG, "dry run for " + key + ": alignment ok, " + removed + " ad period(s) would be removed");
+            return null;
+        }
         logPeriods(xml, spans, durations, keep);
         if (removed == 0) {
             Log.i(TAG, "no ad periods found in manifest for " + key);
-            why[0] = "no ad periods";
             return null;
         }
 
         int firstStart = spans.get(0)[0];
         int lastEnd = spans.get(spans.size() - 1)[1];
         double cursor = 0;
+        int kept = 0;
         StringBuilder body = new StringBuilder();
         for (int i = 0; i < spans.size(); i++) {
             if (!keep[i]) {
@@ -402,14 +429,16 @@ public final class HboManifestFilter implements Runnable {
             String period = xml.substring(spans.get(i)[0], spans.get(i)[1]);
             body.append(withStart(period, cursor));
             cursor += durations.get(i);
+            kept++;
         }
         String prefix = xml.substring(0, firstStart)
                 .replaceFirst("mediaPresentationDuration=\"[^\"]*\"",
                         "mediaPresentationDuration=\"" + iso(cursor) + "\"");
         StringBuilder out = new StringBuilder(xml.length());
         out.append(prefix).append(body).append(xml.substring(lastEnd));
-        Log.i(TAG, "removed " + removed + " ad period(s); kept " + content.size()
-                + " content period(s); new duration " + iso(cursor) + " for " + hostAndFile(uri));
+        Log.i(TAG, "removed " + removed + " ad period(s); kept " + kept
+                + " content period(s) (" + content.size() + " fallback period(s)); new duration "
+                + iso(cursor) + " for " + hostAndFile(uri));
         try {
             return out.toString().getBytes("UTF-8");
         } catch (Exception e) {
@@ -419,43 +448,109 @@ public final class HboManifestFilter implements Runnable {
     }
 
     /**
-     * Assigns every FALLBACK (content) duration to a PRIMARY Period, in order. Returns the
-     * keep-mask only if that assignment is UNIQUE; ambiguous or missing => null.
+     * Assigns the FALLBACK (content) periods to PRIMARY periods, in order. One PRIMARY content
+     * period may cover SEVERAL consecutive FALLBACK periods (the stitcher merges content that
+     * is not interrupted by an ad break); every other PRIMARY period is an ad. Returns the
+     * keep-mask only if the alignment is unique; if several alignments fit, the one in which
+     * every kept period has strictly more audio languages than every dropped period wins
+     * (observed: content 14-24, ads 2-4); otherwise null (fail open).
      */
-    private static boolean[] matchUnique(List<Double> primary, List<Double> content, String[] why) {
+    private static boolean[] align(List<Double> primary, List<Integer> langCounts,
+            List<Double> content, String[] why) {
         int n = primary.size();
         int m = content.size();
-        if (m == 0 || n < m) {
-            why[0] = "fewer primary periods (" + n + ") than fallback periods (" + m + ")";
+        if (m == 0) {
+            why[0] = "fallback has no periods";
             return null;
         }
-        int[] ways = new int[m + 1];
-        ways[0] = 1;
-        for (int i = 0; i < n; i++) {
-            for (int j = m; j >= 1; j--) {
-                if (Math.abs(primary.get(i) - content.get(j - 1)) <= TOLERANCE_SECONDS) {
-                    ways[j] = Math.min(2, ways[j] + ways[j - 1]);
+        double[] ps = new double[m + 1];
+        for (int j = 0; j < m; j++) {
+            ps[j + 1] = ps[j] + content.get(j);
+        }
+        // suf[i][j] = number of ways to finish from (primary period i, fallback period j)
+        long[][] suf = new long[n + 1][m + 1];
+        suf[n][m] = 1;
+        for (int i = n - 1; i >= 0; i--) {
+            for (int j = 0; j <= m; j++) {
+                long ways = suf[i + 1][j]; // period i is an ad
+                for (int k = 1; j + k <= m; k++) {
+                    if (fits(primary.get(i), ps[j + k] - ps[j], k)) {
+                        ways += suf[i + 1][j + k];
+                    }
                 }
+                suf[i][j] = Math.min(ways, 100000L);
             }
         }
-        if (ways[m] == 0) {
+        long total = suf[0][0];
+        if (total == 0) {
             why[0] = "content periods do not match the fallback";
             return null;
         }
-        if (ways[m] > 1) {
-            why[0] = "ambiguous match (an unmatched period has the same duration as a content period)";
+        if (total > 200) {
+            why[0] = "ambiguous match (" + total + " possible alignments)";
             return null;
         }
-        // Exactly one assignment exists, so the greedy leftmost assignment IS that one.
-        boolean[] keep = new boolean[n];
-        int j = 0;
-        for (int i = 0; i < n && j < m; i++) {
-            if (Math.abs(primary.get(i) - content.get(j)) <= TOLERANCE_SECONDS) {
+        List<boolean[]> found = new ArrayList<boolean[]>();
+        enumerate(primary, ps, suf, 0, 0, new boolean[n], found);
+        boolean[] chosen = null;
+        if (found.size() == 1) {
+            chosen = found.get(0);
+        } else {
+            int good = 0;
+            for (boolean[] cand : found) {
+                int minKept = Integer.MAX_VALUE;
+                int maxDropped = -1;
+                for (int i = 0; i < n; i++) {
+                    if (cand[i]) {
+                        minKept = Math.min(minKept, langCounts.get(i));
+                    } else {
+                        maxDropped = Math.max(maxDropped, langCounts.get(i));
+                    }
+                }
+                if (minKept > maxDropped) {
+                    good++;
+                    chosen = cand;
+                }
+            }
+            if (good != 1) {
+                why[0] = "ambiguous match (" + found.size() + " alignments, " + good
+                        + " pass the audio-language check)";
+                return null;
+            }
+            Log.i(TAG, "ambiguous durations resolved by audio-language count (" + found.size()
+                    + " alignments)");
+        }
+        return chosen;
+    }
+
+    private static boolean fits(double primaryDuration, double fallbackSum, int merged) {
+        return Math.abs(primaryDuration - fallbackSum) <= 0.002 + 0.001 * merged;
+    }
+
+    private static void enumerate(List<Double> primary, double[] ps, long[][] suf, int i, int j,
+            boolean[] keep, List<boolean[]> out) {
+        int n = primary.size();
+        int m = ps.length - 1;
+        if (out.size() >= 200) {
+            return;
+        }
+        if (i == n) {
+            if (j == m) {
+                out.add(keep.clone());
+            }
+            return;
+        }
+        if (suf[i + 1][j] > 0) { // period i is an ad
+            keep[i] = false;
+            enumerate(primary, ps, suf, i + 1, j, keep, out);
+        }
+        for (int k = 1; j + k <= m; k++) {
+            if (fits(primary.get(i), ps[j + k] - ps[j], k) && suf[i + 1][j + k] > 0) {
                 keep[i] = true;
-                j++;
+                enumerate(primary, ps, suf, i + 1, j + k, keep, out);
+                keep[i] = false;
             }
         }
-        return keep;
     }
 
     private static void logPeriods(String xml, List<int[]> spans, List<Double> durations,
@@ -526,31 +621,38 @@ public final class HboManifestFilter implements Runnable {
         return newTag + period.substring(tag.length());
     }
 
-    private static List<Double> fetchPeriodDurations(String url) throws Exception {
-        long deadline = System.currentTimeMillis() + DEADLINE_MS;
+    private static String fetchText(String url, long budgetMillis) throws Exception {
+        long deadline = System.currentTimeMillis() + budgetMillis;
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         try {
             c.setConnectTimeout(2000);
             c.setReadTimeout(2000);
             c.setRequestProperty("User-Agent", "Mozilla/5.0");
             if (c.getResponseCode() != 200) {
-                Log.i(TAG, "fallback manifest HTTP " + c.getResponseCode());
+                Log.i(TAG, "manifest HTTP " + c.getResponseCode() + " for " + hostAndFile(url));
                 return null;
             }
-            String xml = new String(readAll(c.getInputStream(), deadline), "UTF-8");
-            List<Double> list = new ArrayList<Double>();
-            Matcher m = PERIOD_OPEN.matcher(xml);
-            while (m.find()) {
-                double d = attrDuration(m.group(), "duration");
-                if (d < 0) {
-                    return null;
-                }
-                list.add(d);
-            }
-            return list;
+            return new String(readAll(c.getInputStream(), deadline), "UTF-8");
         } finally {
             c.disconnect();
         }
+    }
+
+    private static List<Double> fetchPeriodDurations(String url) throws Exception {
+        String xml = fetchText(url, DEADLINE_MS);
+        if (xml == null) {
+            return null;
+        }
+        List<Double> list = new ArrayList<Double>();
+        Matcher m = PERIOD_OPEN.matcher(xml);
+        while (m.find()) {
+            double d = attrDuration(m.group(), "duration");
+            if (d < 0) {
+                return null;
+            }
+            list.add(d);
+        }
+        return list;
     }
 
     // ---------------------------------------------------------------------

@@ -1,5 +1,9 @@
 package ajstrick81.morphe.extension.hbomax.ads;
 
+// HBO Max "Remove Ad Periods (keep 5.1)" contributed by Joker4Life12 (github.com/Joker4Life12),
+// from his fork Joker4Life12/morphe-androidtv-patches (branch hbo-51). Captured and tested
+// on-device by him on HBO Max 7.14.0.69. Thank you!
+
 import android.os.Looper;
 import android.util.Log;
 
@@ -37,6 +41,10 @@ import java.util.regex.Pattern;
  * regardless of which of the two runs first.
  *
  * Fail-open: on ANY doubt the original manifest bytes / StreamInfo are used untouched.
+ *
+ * Verified on HBO Max (Android TV) 7.14.0.69 (Nvidia Shield TV): 21 playbacks, 20x FILTER, 1x
+ * PASS-THROUGH, 0x MISALIGNED. Not verified on device: a title without a FALLBACK stream and a
+ * real duration collision (covered by synthetic tests only).
  */
 @SuppressWarnings("unused")
 public final class HboManifestFilter implements Runnable {

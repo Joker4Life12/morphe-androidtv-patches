@@ -1,5 +1,9 @@
 package ajstrick81.morphe.patches.hbomax.ads
 
+// HBO Max "Remove Ad Periods (keep 5.1)" contributed by Joker4Life12 (github.com/Joker4Life12),
+// from his fork Joker4Life12/morphe-androidtv-patches (branch hbo-51). Captured and tested
+// on-device by him on HBO Max 7.14.0.69. Thank you!
+
 import app.morphe.patcher.Fingerprint
 import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.bytecodePatch
@@ -8,31 +12,39 @@ import ajstrick81.morphe.patches.shared.compat.AppCompatibilities
 // ─────────────────────────────────────────────────────────────────────────────
 // HBO Max — Remove Ad Periods (keeps the PRIMARY stream's 5.1 audio)
 //
-// "Prefer Ad-Free Stream" plays HBO's FALLBACK manifest, which is ad-free but
-// carries stereo audio only (captured on-device: codecs=[mp4a.40.5],
-// audioChannelConfiguration=[2]). The PRIMARY manifest has E-AC-3 5.1
-// (codecs include ec-3, channel config 6) but the ads are stitched in as extra
-// <Period> elements. The content Periods of PRIMARY have exactly the same
-// durations as the Periods of the FALLBACK manifest.
+// "Prefer Ad-Free Stream" plays HBO's FALLBACK manifest, which is ad-free but carries
+// stereo audio only (captured on device: codecs=[mp4a.40.5], channel config 2). The
+// PRIMARY manifest has E-AC-3 5.1 (codecs include ec-3, channel config 6) but the ads are
+// stitched in as extra <Period> elements. The content Periods of PRIMARY have the same
+// durations as the Periods of the FALLBACK manifest; one PRIMARY content period may span
+// several consecutive FALLBACK periods (seen on device: 1 vs. 5).
 //
-// This patch keeps the PRIMARY stream and removes the ad Periods from its manifest
-// before the player parses it:
-//   1. PlayableKt.getStreamInfo (entry): HboManifestFilter.captureStreams(playable)
-//      remembers the FALLBACK manifest URL.
-//   3. CreateTimelineUseCase.invoke(StreamInfo) (entry): the app builds its ad UI
-//      ("Werbung 1/2", seek lock) and chapter markers (skip intro / next episode) from the
-//      StreamInfo's timeline payload. The PRIMARY payload still lists the ad breaks and
-//      uses the stitched time base; the FALLBACK payload has no ads and uses the content
-//      time base. So the timeline builder gets the FALLBACK StreamInfo.
-//   2. ExoPlayerDashManifestParser.parse(Uri, InputStream) (entry): the manifest
-//      stream is replaced by HboManifestFilter.filter(uri, stream). It fetches the
-//      FALLBACK manifest, keeps only the PRIMARY Periods whose durations match the
-//      FALLBACK content Periods, drops the rest, and recomputes Period start times
-//      and the MPD duration.
-// Fail-open: on any doubt the original manifest is passed through unchanged.
+// This patch keeps the PRIMARY stream and removes the ad Periods before the player parses
+// the manifest. Three hooks, all in HboManifestFilter:
+//   1. PlayableKt.getStreamInfo (entry): captureStreams(playable) binds the FALLBACK
+//      stream to the title (session keyed by the asset UUID in the URL) and prefetches the
+//      FALLBACK manifest in the background (3 s total deadline).
+//   2. CreateTimelineUseCase.invoke(StreamInfo) (entry): the app builds its ad UI ("Ad 1 of
+//      2", seek lock) and chapter markers (skip intro / next episode) from the StreamInfo's
+//      timeline payload. PRIMARY's payload lists the ad breaks in the stitched time base;
+//      FALLBACK's has none and uses the content time base. On device this hook runs BEFORE
+//      the manifest parse, on a worker thread. It runs a dry run of the period filter on
+//      the PRIMARY manifest and only switches to the FALLBACK StreamInfo if that succeeds.
+//   3. ExoPlayerDashManifestParser.parse(Uri, InputStream) (entry): filter(uri, stream)
+//      drops the ad periods and recomputes Period starts and the MPD duration.
+// A per-session decision (FILTER / PASS-THROUGH) is shared by hooks 2 and 3, so timeline
+// and manifest can not disagree. Period matching: 1 ms tolerance, exactly ONE alignment of
+// content periods; ambiguity is resolved only by audio-language count (content 14-24 vs.
+// ads 2-4), otherwise nothing is changed. Fail-open on any doubt.
 //
 // Exclusive with "HBO Max - Prefer Ad-Free Stream": when this patch is installed that remap
-// is switched off at runtime. Recommended together with "HBO Max - Disable Ads".
+// is switched off at runtime (dependsOn makes this patch's hook run first).
+// Recommended together with "HBO Max - Disable Ads".
+//
+// Verified on HBO Max (Android TV) 7.14.0.69 (Nvidia Shield TV): 21 playbacks (movies, series),
+// 20x FILTER, 1x PASS-THROUGH (fallback unavailable), 0x MISALIGNED; 5.1 stays, ad UI and
+// seek lock are gone, skip intro / next episode timings are correct. Not verified on
+// device: a title without a FALLBACK stream and a real duration collision (synthetic tests only).
 // ─────────────────────────────────────────────────────────────────────────────
 
 internal object ExoPlayerDashManifestParserParseFingerprint : Fingerprint(

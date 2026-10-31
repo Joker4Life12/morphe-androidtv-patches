@@ -25,7 +25,7 @@ val skipAdsPatch = bytecodePatch(
         // Hook 3 — FoxPlayer.clearVodAds()
         FoxPlayerClearVodAdsFingerprint.method.addInstructions(0, "return-void")
 
-        // Hook 4 — ImagePauseAds.l(VideoApi, long)
+        // Hook 4 — ImagePauseAds.n(VideoApi, long)
         TubiPauseAdsFingerprint.method.addInstructions(0, "return-void")
 
         // Hook 5 — FoxImaStreamIdLoader.requestVODDAIUrl
@@ -48,7 +48,7 @@ val skipAdsPatch = bytecodePatch(
             """
         )
 
-        // Hook 7 — xo/C$c.shouldInterceptRequest(WebView, WebResourceRequest)
+        // Hook 7 — Fp/C$c.shouldInterceptRequest(WebView, WebResourceRequest)
         //
         // WebView-layer ad domain interception. Blocks XHR/fetch requests from
         // the Tubi SPA to ad orchestration endpoints. Cannot intercept media
@@ -118,7 +118,7 @@ val skipAdsPatch = bytecodePatch(
             )
         }
 
-        // Hook 8 — xo/C$c.onPageFinished(WebView, String)
+        // Hook 8 — Fp/C$c.onPageFinished(WebView, String)
         //
         // JavaScript fetch override injected into the SPA after page load.
         // Intercepts fetch() calls to ad orchestration endpoints in JS context.
@@ -131,11 +131,11 @@ val skipAdsPatch = bytecodePatch(
             """
         )
 
-        // Hook 9 — Sf/c.suspendGetAdBreaks(String, String, String, Map, Continuation)
+        // Hook 9 — Of/c.suspendGetAdBreaks(String, String, String, Map, Continuation)
         //
-        // Rainmaker ad-break fetch coroutine. Returns Lqn/d; (sealed result),
-        // with the caller branching on instance-of Lqn/d$e (success) vs
-        // Lqn/d$b (error) and converging afterward either way.
+        // Rainmaker ad-break fetch coroutine. Returns LBn/d; (sealed result),
+        // with the caller branching on instance-of LBn/d$e (success) vs
+        // LBn/d$b (error) and converging afterward either way.
         //
         // Previous attempt returned COROUTINE_SUSPENDED directly to fake a
         // no-op, which broke the suspend-function contract: nothing ever
@@ -144,7 +144,7 @@ val skipAdsPatch = bytecodePatch(
         // at TubiNewPlayerImpl.kt:102), hanging the entire content pipeline.
         //
         // Fix: skip the network call and the continuation machinery entirely,
-        // returning a real, immediate Lqn/d$d (generic error) result. The
+        // returning a real, immediate LBn/d$d (generic error) result. The
         // caller takes its existing error branch — the same one a genuine
         // network failure already triggers gracefully — and the coroutine
         // completes normally, with no DNS-layer workaround required.
@@ -154,10 +154,19 @@ val skipAdsPatch = bytecodePatch(
                 new-instance v0, Ljava/io/IOException;
                 const-string v1, "ads_blocked"
                 invoke-direct {v0, v1}, Ljava/io/IOException;-><init>(Ljava/lang/String;)V
-                new-instance v2, Lqn/d${"$"}d;
-                invoke-direct {v2, v0}, Lqn/d${"$"}d;-><init>(Ljava/lang/Throwable;)V
+                new-instance v2, LBn/d${"$"}d;
+                invoke-direct {v2, v0}, LBn/d${"$"}d;-><init>(Ljava/lang/Throwable;)V
                 return-object v2
             """
         )
+
+        // Hook 10 — PauseAdsManager.A(Bitmap, String)
+        //
+        // Image pause-ad render funnel, new in 10.40 (see Fingerprints.kt). The
+        // legacy ImagePauseAds path (Hook 4) no longer drives the on-pause image
+        // overlay; this controller does, for both third-party creatives and Tubi
+        // house promos. return-void skips posting show=true / the bitmap to the
+        // observed LiveData, so PauseAdsView is never raised — no pause ad.
+        TubiPauseAdsManagerShowImageFingerprint.method.addInstructions(0, "return-void")
     }
 }

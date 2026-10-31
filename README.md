@@ -39,7 +39,7 @@ That line is the reason this project exists. If you own the TV and pay for the s
 | 🟢 Netflix | Pre/mid-roll + pause ads · installs as a clone | `13.0.1 build 25028` | 9/14/26 |
 | 🟢 HBO Max | All ads, incl. baked-in SSAI (ad-free stream) | `7.9.0.61` | 8/26/26 |
 | 🟢 Peacock | VOD ads | `7.10.102` · `7.8.100` | 9/29/26 |
-| 🟢 Tubi | Ads (+ opt-in analytics block) | `10.36.5000` | 9/29/26 |
+| 🟢 Tubi | Ads (+ opt-in analytics block) | `10.40.5000` | 10/22/26 |
 | 🟢 ViX | Ads | `4.47.2_tv` | 7/11/26 |
 | 🟢 Pluto TV | VOD ads · live breaks masked (opt-in) | `5.66.0-leanback` | 9/7/26 |
 | 🟢 Paramount+ | VOD + pause ads · live untouched | `16.17.0` | 8/4/26 |
@@ -204,7 +204,7 @@ All patches follow the same general workflow using **Morphe Manager**:
 
 ### 📺 Tubi
 
-1. Open the **[Tubi (Android TV) listing on APKMirror](https://www.apkmirror.com/apk/tubi-tv/tubi-free-movies-live-tv-android-tv/)** and select version **`10.36.5000`**
+1. Open the **[Tubi (Android TV) listing on APKMirror](https://www.apkmirror.com/apk/tubi-tv/tubi-free-movies-live-tv-android-tv/)** and select version **`10.40.5000`**
 2. ⚠️ Use this **Android TV** listing — not the "Tubi (Fire TV)" or the phone listing
 3. Download the `.apkm` file
 4. Select it in Morphe Manager
@@ -370,6 +370,9 @@ This patch template is based on the prior work of [ReVanced](https://github.com/
 - [Xtra for Twitch](https://github.com/crackededed/Xtra) (crackededed) — Android-side Twitch ad mitigation prior art
 
 All Twitch techniques were independently re-derived via dex disassembly and are not copied from these projects' source code. See [NOTICE](NOTICE) for full attribution details.
+
+**Community contributions** — code written by people who forked this repo, ported here with their authorship preserved. Thank you for your time and hard work:
+- [Michael Bompani](https://github.com/michaelbompani) — RaiPlay 5.0.1 support and the live-channel (Rai 2) 404 fix
 
 **Netflix household-prompt suppression** is informed by:
 - [Nikflix](https://github.com/YidirK/Nikflix) (YidirK, GPL-3.0) — identified Netflix's household / "you're traveling" enforcement via the `CLCSInterstitialPlaybackAndPostPlayback` interstitial

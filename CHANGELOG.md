@@ -1,3 +1,59 @@
+## [1.46.2](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.46.1...v1.46.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* **disney:** re-pin out-of-household fingerprint for 26.16.0 ([#278](https://github.com/ajstrick81/morphe-androidtv-patches/issues/278)) ([7027d0c](https://github.com/ajstrick81/morphe-androidtv-patches/commit/7027d0c974fad91c4c3c00d09e4de76696392554)), closes [#119](https://github.com/ajstrick81/morphe-androidtv-patches/issues/119)
+
+## [1.46.1](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.46.0...v1.46.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **hbomax:** playback speed chip remote control + auto-hide ([#258](https://github.com/ajstrick81/morphe-androidtv-patches/issues/258)) ([#277](https://github.com/ajstrick81/morphe-androidtv-patches/issues/277)) ([cf49000](https://github.com/ajstrick81/morphe-androidtv-patches/commit/cf490003b918101dcba33a9dc65cd131652ad20d))
+
+# [1.46.0](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.45.0...v1.46.0) (2026-10-29)
+
+
+### Bug Fixes
+
+* **pluto:** add v17 VOD Skip ads (AVIA stack) + strip click-tracked ad clips ([#251](https://github.com/ajstrick81/morphe-androidtv-patches/issues/251)) ([8a37071](https://github.com/ajstrick81/morphe-androidtv-patches/commit/8a370719230c32fe4c824080e848c4db947b79ae))
+
+
+### Features
+
+* **hbomax:** add opt-in playback-speed control ([#258](https://github.com/ajstrick81/morphe-androidtv-patches/issues/258)) ([8b48916](https://github.com/ajstrick81/morphe-androidtv-patches/commit/8b489160493e38725277fc43b8e10adcb0e97024))
+* **xumo:** add Skip ads for Xumo Play Android TV ([#247](https://github.com/ajstrick81/morphe-androidtv-patches/issues/247)) ([115d5cf](https://github.com/ajstrick81/morphe-androidtv-patches/commit/115d5cf65f098085882a9bf9d29fabaf98484c4b))
+
+# [1.45.0](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.44.0...v1.45.0) (2026-10-28)
+
+
+### Features
+
+* **twitch:** add playback speed controls ([6a49d68](https://github.com/ajstrick81/morphe-androidtv-patches/commit/6a49d68f5ee8040e7b8c2bd59801feb36818370f))
+
+# [1.44.0](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.43.0...v1.44.0) (2026-10-26)
+
+
+### Features
+
+* **fawesome:** disable the "New version Available" update prompt (19.7) ([64ffa83](https://github.com/ajstrick81/morphe-androidtv-patches/commit/64ffa830292cf75ce38e055e9430531d5c9a67f7)), closes [#257](https://github.com/ajstrick81/morphe-androidtv-patches/issues/257) [#257](https://github.com/ajstrick81/morphe-androidtv-patches/issues/257)
+* **fawesome:** extend update-prompt disable to 20.1 (R8-obfuscated rewrite) ([57ebd6a](https://github.com/ajstrick81/morphe-androidtv-patches/commit/57ebd6a8815eaa49165808c968467133d370c797)), closes [#257](https://github.com/ajstrick81/morphe-androidtv-patches/issues/257)
+
+# [1.43.0](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.42.3...v1.43.0) (2026-10-25)
+
+
+### Features
+
+* **netflix:** support 13.2.1 build 27207 (experimental) ([676e203](https://github.com/ajstrick81/morphe-androidtv-patches/commit/676e20399bea8f240113c075269a654820c42533)), closes [212/#232](https://github.com/ajstrick81/morphe-androidtv-patches/issues/232)
+
+## [1.42.3](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.42.2...v1.42.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* **tubi:** re-anchor Skip ads for 10.40.5000 + block new image pause-ad surface ([68a0747](https://github.com/ajstrick81/morphe-androidtv-patches/commit/68a07473273b4c29ac23db207dbdb27c296bf78e))
+
 ## [1.42.2](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.42.1...v1.42.2) (2026-10-17)
 
 

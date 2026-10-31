@@ -5,7 +5,7 @@ import com.android.tools.smali.dexlib2.AccessFlags
 
 // SDK entry points below are public API, which the SDKs' consumer ProGuard
 // rules keep un-obfuscated, so they match across Tubi versions (verified
-// against the 10.36.5000 Android TV build).
+// against the 10.36.5000 and 10.40.5000 Android TV builds).
 
 // Adjust 5.x — the SDK never starts, so it never reads ANDROID_ID / GAID or
 // sends attribution events. Later Adjust.trackEvent() etc. only log

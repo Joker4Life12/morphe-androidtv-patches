@@ -1,3 +1,21 @@
+# [1.45.0](https://github.com/Joker4Life12/morphe-androidtv-patches/compare/v1.44.0...v1.45.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **disney:** re-pin out-of-household fingerprint for 26.16.0 ([#278](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/278)) ([7027d0c](https://github.com/Joker4Life12/morphe-androidtv-patches/commit/7027d0c974fad91c4c3c00d09e4de76696392554)), closes [#119](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/119)
+* **hbomax:** playback speed chip remote control + auto-hide ([#258](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/258)) ([#277](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/277)) ([cf49000](https://github.com/Joker4Life12/morphe-androidtv-patches/commit/cf490003b918101dcba33a9dc65cd131652ad20d))
+* **pluto:** add v17 VOD Skip ads (AVIA stack) + strip click-tracked ad clips ([#251](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/251)) ([8a37071](https://github.com/Joker4Life12/morphe-androidtv-patches/commit/8a370719230c32fe4c824080e848c4db947b79ae))
+
+
+### Features
+
+* **hbomax:** add opt-in playback-speed control ([#258](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/258)) ([8b48916](https://github.com/Joker4Life12/morphe-androidtv-patches/commit/8b489160493e38725277fc43b8e10adcb0e97024))
+* **hbomax:** remove ad periods, keep 5.1 audio ([#285](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/285)) ([d887b59](https://github.com/Joker4Life12/morphe-androidtv-patches/commit/d887b59a31c3bb865d3b0ae3ae3a5edba070474f))
+* **netflix:** support 13.2.2 (27250) for household suppression ([#283](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/283)) ([220c1f7](https://github.com/Joker4Life12/morphe-androidtv-patches/commit/220c1f71bb1ce44bd628e092d803bc3885ee4f6a)), closes [#237](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/237)
+* **twitch:** add playback speed controls ([6a49d68](https://github.com/Joker4Life12/morphe-androidtv-patches/commit/6a49d68f5ee8040e7b8c2bd59801feb36818370f))
+* **xumo:** add Skip ads for Xumo Play Android TV ([#247](https://github.com/Joker4Life12/morphe-androidtv-patches/issues/247)) ([115d5cf](https://github.com/Joker4Life12/morphe-androidtv-patches/commit/115d5cf65f098085882a9bf9d29fabaf98484c4b))
+
 # [1.48.0](https://github.com/ajstrick81/morphe-androidtv-patches/compare/v1.47.0...v1.48.0) (2026-10-31)
 
 
